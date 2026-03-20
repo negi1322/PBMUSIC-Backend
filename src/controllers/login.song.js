@@ -23,9 +23,11 @@ export const Login_user = async (req, res) => {
     } else {
       return res.status(400).json({ message: "Invalid Credentials" });
     }
+    let userDetail = { username: existUser?.name, email: existUser?.email };
     res.status(201).json({
       message: "User SignIn successfully",
       token,
+      userDetail,
     });
   } catch (err) {
     res.status(500).json({ message: "Server error", error: err.message });
