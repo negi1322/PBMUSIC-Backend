@@ -9,6 +9,7 @@ import { Search_song } from "./src/controllers/search.song.js";
 import { Trending_song } from "./src/controllers/tranding.song.js";
 import { Song_audio } from "./src/controllers/audio.song.js";
 import { Add_user } from "./src/controllers/adduser.song.js";
+import { Login_user } from "./src/controllers/login.song.js";
 
 const app = express();
 app.use(express.json());
@@ -35,6 +36,7 @@ app.post("/search", Search_song);
 app.get("/audio", Song_audio);
 app.get("/trending", Trending_song);
 app.get("/playlist", Playlist_route);
+app.post("/login", Login_user);
 
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
