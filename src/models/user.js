@@ -7,13 +7,19 @@ const User_model = new mongoose.Schema(
       required: true,
       lowercase: true,
     },
+    surname: {
+      type: String,
+      lowercase: true,
+    },
 
     email: {
       type: String,
       required: true,
       unique: true,
     },
-
+    contact: {
+      type: Number,
+    },
     password: {
       type: String,
       required: true,

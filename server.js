@@ -10,6 +10,7 @@ import { Trending_song } from "./src/controllers/tranding.song.js";
 import { Song_audio } from "./src/controllers/audio.song.js";
 import { Add_user } from "./src/controllers/adduser.song.js";
 import { Login_user } from "./src/controllers/login.song.js";
+import { UserDetail, User_profile } from "./src/controllers/userDetail.song.js";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +38,8 @@ app.get("/audio", Song_audio);
 app.get("/trending", Trending_song);
 app.get("/playlist", Playlist_route);
 app.post("/login", Login_user);
+app.put("/update_profile", UserDetail);
+app.get("/profile", User_profile);
 
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
