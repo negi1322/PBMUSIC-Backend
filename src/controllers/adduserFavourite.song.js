@@ -47,6 +47,8 @@ export const Get_favourite_song = async (req, res) => {
       return res
         .status(200)
         .json({ message: "Song fetch successfully", data: userFavourites });
+    } else {
+      return res.status(200).json({ message: "No songs added" });
     }
   } catch (err) {
     res
