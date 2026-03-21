@@ -1,5 +1,8 @@
-import ytdlp from "yt-dlp-exec";
+import { execFile } from "child_process";
+import { promisify } from "util";
 import https from "https";
+
+const execFileAsync = promisify(execFile);
 
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
@@ -9,11 +12,16 @@ export const Song_audio = async (req, res) => {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
   try {
-    // 👇 Step 1 — audio URL + filesize ek saath lo
-    const data = await ytdlp(url, {
-      dumpSingleJson: true,
-      format: "bestaudio",
-    });
+    const { stdout } = await execFileAsync("yt-dlp", [
+      "--dump-single-json",
+      "--no-playlist",
+      "--quiet",
+      "-f",
+      "bestaudio",
+      url,
+    ]);
+
+    const data = JSON.parse(stdout);
 
     const audioFormat = data.formats
       ?.filter((f) => f.acodec !== "none" && f.vcodec === "none")
@@ -26,33 +34,25 @@ export const Song_audio = async (req, res) => {
 
     const range = req.headers.range;
 
-    // 👇 Step 2 — Range header handle karo
     const requestHeaders = {
       "User-Agent": "Mozilla/5.0",
       Referer: "https://www.youtube.com/",
     };
 
-    if (range) {
-      requestHeaders.Range = range; // 👈 seeking request forward karo
-    }
+    if (range) requestHeaders.Range = range;
 
-    // 👇 Step 3 — proxy karo YouTube stream
     https
       .get(audioUrl, { headers: requestHeaders }, (stream) => {
-        const statusCode = stream.statusCode; // 200 ya 206
-
         const responseHeaders = {
           ...stream.headers,
           "Access-Control-Allow-Origin": "*",
           "Accept-Ranges": "bytes",
         };
 
-        // 👇 filesize manually add karo agar YouTube ne nahi diya
         if (!responseHeaders["content-length"] && fileSize) {
           responseHeaders["Content-Length"] = fileSize;
         }
 
-        // 👇 Range request hai toh Content-Range add karo
         if (range && fileSize) {
           const parts = range.replace(/bytes=/, "").split("-");
           const start = parseInt(parts[0], 10);
@@ -63,14 +63,12 @@ export const Song_audio = async (req, res) => {
             `bytes ${start}-${end}/${fileSize}`;
           responseHeaders["Content-Length"] = chunkSize;
 
-          res.writeHead(206, responseHeaders); // 👈 206 = Partial Content
+          res.writeHead(206, responseHeaders);
         } else {
-          res.writeHead(statusCode, responseHeaders);
+          res.writeHead(stream.statusCode, responseHeaders);
         }
 
         stream.pipe(res);
-
-        // 👇 client disconnect pe stream band karo
         req.on("close", () => stream.destroy());
       })
       .on("error", (err) => {
@@ -78,7 +76,7 @@ export const Song_audio = async (req, res) => {
         if (!res.headersSent) res.status(500).json({ error: err.message });
       });
   } catch (err) {
-    console.error("❌ yt-dlp error:", err.message);
+    console.error("❌ Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
