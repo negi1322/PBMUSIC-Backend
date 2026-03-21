@@ -23,7 +23,7 @@ out/
 .cache/
 .parcel-cache/
 .vite/
-cookies.txt
+
 # ─── Logs ───────────────────────────────────────────────────
 logs/
 *.log
