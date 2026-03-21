@@ -4,7 +4,6 @@ import userModel from "../models/user.js";
 export const Add_user_fav = async (req, res) => {
   try {
     const { email, videoId } = req.body;
-
     if (!email || !videoId) {
       return res
         .status(400)
@@ -15,7 +14,6 @@ export const Add_user_fav = async (req, res) => {
     if (!check) {
       return res.status(400).json({ message: "User not found" });
     }
-
     const addingFav = await userFavModel.findOneAndUpdate(
       { email },
       { $addToSet: { videoIds: videoId } },
@@ -47,6 +45,37 @@ export const Get_favourite_song = async (req, res) => {
         .json({ message: "Song fetch successfully", data: userFavourites });
     } else {
       return res.status(400).json({ message: "user not found" });
+    }
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Something went wrong", error: err.message });
+  }
+};
+
+export const Remove_user_fav = async (req, res) => {
+  try {
+    const { email, videoId } = req.body;
+    if (!email || !videoId) {
+      return res
+        .status(400)
+        .json({ message: "Email and videoId are required" });
+    }
+
+    const check = await userModel.findOne({ email });
+    if (!check) {
+      return res.status(400).json({ message: "User not found" });
+    }
+    const RemovingFav = await userFavModel.findOneAndUpdate(
+      { email },
+      { $pull: { videoIds: videoId } },
+      { new: true },
+    );
+
+    if (RemovingFav) {
+      return res
+        .status(201)
+        .json({ message: "Song remove successfully", data: RemovingFav });
     }
   } catch (err) {
     res

@@ -17,6 +17,7 @@ import { UserDetail, User_profile } from "./src/controllers/userDetail.song.js";
 import {
   Add_user_fav,
   Get_favourite_song,
+  Remove_user_fav,
 } from "./src/controllers/adduserFavourite.song.js";
 
 const app = express();
@@ -54,6 +55,7 @@ app.post("/login", Login_user);
 app.put("/update_profile", UserDetail);
 app.get("/profile", User_profile);
 app.post("/addFav", Add_user_fav);
+app.post("/remove", Remove_user_fav);
 app.get("/getFav", Get_favourite_song);
 app.post("/get_song", Get_song_album);
 
