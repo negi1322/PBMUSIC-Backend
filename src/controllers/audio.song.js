@@ -81,9 +81,6 @@
 //   }
 // };
 
-
-
-
 import { execFile } from "child_process";
 import { promisify } from "util";
 import https from "https";
@@ -102,7 +99,8 @@ export const Song_audio = async (req, res) => {
       "--dump-single-json",
       "--no-playlist",
       "--quiet",
-      "-f", "bestaudio[ext=m4a]/bestaudio", // 👈 m4a prefer karo — mobile compatible
+      "-f",
+      "bestaudio",
       url,
     ]);
 
@@ -115,59 +113,63 @@ export const Song_audio = async (req, res) => {
     const audioUrl = audioFormat?.url;
     const fileSize = audioFormat?.filesize || audioFormat?.filesize_approx;
 
-    if (!audioUrl) return res.status(500).json({ error: "No audio found" });
+    if (!audioUrl) {
+      return res.status(500).json({ error: "No audio found" });
+    }
 
     const range = req.headers.range;
 
-    const requestHeaders = {
-      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)", // 👈 mobile UA
-      "Referer": "https://www.youtube.com/",
+    const headers = {
+      "User-Agent": "Mozilla/5.0",
+      Referer: "https://www.youtube.com/",
     };
 
-    // 👇 Range forward karo EXACTLY jaisa browser ne bheja
-    if (range) requestHeaders.Range = range;
+    if (range) headers.Range = range;
 
-    https.get(audioUrl, { headers: requestHeaders }, (stream) => {
+    https
+      .get(audioUrl, { headers }, (stream) => {
+        const contentType = stream.headers["content-type"] || "audio/mpeg";
 
-      const responseHeaders = {
-        "Content-Type": "audio/mp4", // 👈 mobile ke liye mp4/m4a
-        "Access-Control-Allow-Origin": "*",
-        "Accept-Ranges": "bytes",
-        "Cache-Control": "no-cache",
-      };
+        // ✅ CLEAN HEADERS (important for mobile)
+        const responseHeaders = {
+          "Content-Type": contentType,
+          "Access-Control-Allow-Origin": "*",
+          "Accept-Ranges": "bytes",
+        };
 
-      // 👇 Content-Length ZARURI hai mobile ke liye
-      const contentLength = stream.headers["content-length"] || fileSize;
-      if (contentLength) {
-        responseHeaders["Content-Length"] = contentLength;
-      }
+        if (range && fileSize) {
+          const parts = range.replace(/bytes=/, "").split("-");
+          const start = parseInt(parts[0], 10);
+          const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
 
-      // 👇 Content-Range ZARURI hai mobile seeking ke liye
-      if (stream.headers["content-range"]) {
-        responseHeaders["Content-Range"] = stream.headers["content-range"];
-      } else if (range && fileSize) {
-        const parts = range.replace(/bytes=/, "").split("-");
-        const start = parseInt(parts[0], 10);
-        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-        responseHeaders["Content-Range"] = `bytes ${start}-${end}/${fileSize}`;
-        responseHeaders["Content-Length"] = end - start + 1;
-      }
+          const chunkSize = end - start + 1;
 
-      // 👇 206 tab dena jab range request ho
-      const statusCode = range ? 206 : 200;
-      res.writeHead(statusCode, responseHeaders);
+          responseHeaders["Content-Range"] =
+            `bytes ${start}-${end}/${fileSize}`;
+          responseHeaders["Content-Length"] = chunkSize;
 
-      stream.pipe(res);
-      req.on("close", () => stream.destroy());
+          res.writeHead(206, responseHeaders);
+        } else {
+          responseHeaders["Content-Length"] =
+            stream.headers["content-length"] || fileSize;
 
-    }).on("error", (err) => {
-      console.error("❌ Stream error:", err.message);
-      if (!res.headersSent) res.status(500).json({ error: err.message });
-    });
+          res.writeHead(200, responseHeaders);
+        }
 
+        stream.pipe(res);
+
+        req.on("close", () => {
+          stream.destroy();
+        });
+      })
+      .on("error", (err) => {
+        console.error("❌ Stream error:", err.message);
+        if (!res.headersSent) {
+          res.status(500).json({ error: err.message });
+        }
+      });
   } catch (err) {
     console.error("❌ Error:", err.message);
     res.status(500).json({ error: err.message });
   }
 };
-
