@@ -5,19 +5,24 @@ export const Add_user = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
+    const trimmedName = name?.trim();
+    const trimmedEmail = email?.trim();
+    const trimmedPassword = password?.trim();
+
+    if (!trimmedName || !trimmedEmail || !trimmedPassword) {
       return res.status(400).json({ message: "All fields are required!" });
     }
 
-    const exist = await userModel.findOne({ email });
+    const exist = await userModel.findOne({ email: trimmedEmail });
     if (exist) {
       return res.status(400).json({ message: "User already exists" });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const hashedPassword = await bcrypt.hash(trimmedPassword, 10);
 
     const user = await userModel.create({
-      name,
-      email,
+      name: trimmedName,
+      email: trimmedEmail,
       password: hashedPassword,
     });
 

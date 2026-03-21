@@ -11,6 +11,10 @@ import { Song_audio } from "./src/controllers/audio.song.js";
 import { Add_user } from "./src/controllers/adduser.song.js";
 import { Login_user } from "./src/controllers/login.song.js";
 import { UserDetail, User_profile } from "./src/controllers/userDetail.song.js";
+import {
+  Add_user_fav,
+  Get_favourite_song,
+} from "./src/controllers/adduserFavourite.song.js";
 
 const app = express();
 app.use(express.json());
@@ -46,6 +50,8 @@ app.get("/playlist", Playlist_route);
 app.post("/login", Login_user);
 app.put("/update_profile", UserDetail);
 app.get("/profile", User_profile);
+app.post("/addFav", Add_user_fav);
+app.get("/getFav", Get_favourite_song);
 
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
