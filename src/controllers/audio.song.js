@@ -88,8 +88,6 @@
 //   }
 // };
 
-
-
 // import { execFile } from "child_process";
 // import { promisify } from "util";
 // import https from "https";
@@ -179,7 +177,6 @@
 //   }
 // };
 
-
 import { execFile } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
@@ -199,12 +196,19 @@ export const Song_audio = async (req, res) => {
   const cookiesPath = fs.existsSync("/app/cookies.txt")
     ? "/app/cookies.txt"
     : fs.existsSync("./cookies.txt")
-    ? "./cookies.txt"
-    : null;
+      ? "./cookies.txt"
+      : null;
 
   try {
     // 🔥 DIRECT AUDIO URL (MOST IMPORTANT FIX)
-    const args = ["-f", "bestaudio", "-g", url];
+    const args = [
+      "--no-cache-dir",
+      "--no-check-certificates",
+      "-f",
+      "bestaudio",
+      "-g",
+      url,
+    ];
 
     if (cookiesPath) {
       args.unshift("--cookies", cookiesPath);
@@ -233,7 +237,7 @@ export const Song_audio = async (req, res) => {
 
     res.setHeader(
       "Content-Type",
-      response.headers["content-type"] || "audio/mpeg"
+      response.headers["content-type"] || "audio/mpeg",
     );
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Accept-Ranges", "bytes");
@@ -253,7 +257,6 @@ export const Song_audio = async (req, res) => {
     req.on("close", () => {
       response.data.destroy();
     });
-
   } catch (err) {
     console.log("❌ ERROR:", err.message);
 
