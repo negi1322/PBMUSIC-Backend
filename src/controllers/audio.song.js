@@ -1,53 +1,38 @@
-import YTMusic from "ytmusic-api";
-import ytdlp from "yt-dlp-exec";
-import https from "https";
-const ytmusic = new YTMusic();
-await ytmusic.initialize();
+import { spawn } from "child_process";
 
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
 
-  if (!videoId) {
-    return res.status(400).json({ error: "Missing video ID" });
-  }
+  if (!videoId) return res.status(400).json({ error: "Missing video ID" });
 
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-  try {
-    const data = await ytdlp(url, {
-      dumpSingleJson: true,
-      format: "bestaudio",
-    });
+  console.log("▶️ Playing:", url);
 
-    const audioFormat = data.formats
-      ?.filter((f) => f.acodec !== "none" && f.vcodec === "none")
-      ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+  res.setHeader("Content-Type", "audio/webm");
+  res.setHeader("Accept-Ranges", "bytes");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Transfer-Encoding", "chunked");
 
-    const audioUrl = audioFormat?.url;
+  const ytdlp = spawn("yt-dlp", [
+    "-f", "bestaudio",
+    "--no-playlist",
+    "--quiet",
+    "--no-warnings",
+    "-o", "-",  // stdout me pipe
+    url,
+  ]);
 
-    if (!audioUrl) {
-      return res.status(500).json({ error: "No audio found" });
-    }
+  ytdlp.stdout.pipe(res);  // seedha browser ko stream
 
-    const range = req.headers.range;
-    const headers = {
-      "User-Agent": "Mozilla/5.0",
-      Referer: "https://www.youtube.com/",
-    };
+  ytdlp.stderr.on("data", (d) => console.error("yt-dlp:", d.toString()));
 
-    if (range) {
-      headers.Range = range;
-    }
+  ytdlp.on("error", (err) => {
+    console.error("❌ spawn error:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 
-    https.get(audioUrl, { headers }, (stream) => {
-      res.writeHead(stream.statusCode, {
-        ...stream.headers,
-        "Access-Control-Allow-Origin": "*",
-        "Accept-Ranges": "bytes",
-      });
-      stream.pipe(res);
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  ytdlp.on("close", (code) => console.log("yt-dlp closed:", code));
+
+  req.on("close", () => ytdlp.kill("SIGTERM")); // client disconnect pe kill
 };
