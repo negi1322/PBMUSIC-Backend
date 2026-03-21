@@ -19,7 +19,6 @@ export const Playlist_route = async (req, res) => {
 export const Get_song_album = async (req, res) => {
   try {
     const { videoIds } = req.body;
-
     if (!videoIds || !Array.isArray(videoIds) || videoIds.length === 0) {
       return res.status(400).json({ message: "videoIds array is required" });
     }

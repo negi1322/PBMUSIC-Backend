@@ -55,7 +55,7 @@ app.put("/update_profile", UserDetail);
 app.get("/profile", User_profile);
 app.post("/addFav", Add_user_fav);
 app.get("/getFav", Get_favourite_song);
-app.get("/get_song", Get_song_album);
+app.post("/get_song", Get_song_album);
 
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
