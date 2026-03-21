@@ -296,6 +296,7 @@ export const Song_audio = async (req, res) => {
       "--no-check-certificates",
       "--js-runtimes",
       "node",
+      "--remote-components", "ejs:github", // 👈 bas yeh add karo
       "-f",
       "bestaudio[ext=m4a]/bestaudio", // 👈 m4a prefer
       "-g",
