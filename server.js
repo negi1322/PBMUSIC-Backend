@@ -21,6 +21,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://10.96.80.138:5173",
   process.env.FRONTEND_URL,
+  "https://pb-music-eight.vercel.app/login",
 ];
 
 app.use(
