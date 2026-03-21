@@ -15,7 +15,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
 RUN yt-dlp --version  # 
 
 WORKDIR /app
-
+COPY cookies.txt /app/cookies.txt
 COPY package*.json ./
 RUN npm install
 
