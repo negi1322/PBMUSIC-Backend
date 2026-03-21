@@ -20,7 +20,7 @@ export const Song_audio = async (req, res) => {
       "--dump-single-json",
       "--no-playlist",
       "--quiet",
-      "--cookies", "/app/cookies.txt", 
+      "--cookies", "/cookies.txt", 
       "-f",
       "bestaudio[ext=m4a]/bestaudio",
       url,
