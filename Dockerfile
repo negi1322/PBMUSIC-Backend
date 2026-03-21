@@ -12,10 +12,16 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp
 
-RUN yt-dlp --version  # 
+RUN yt-dlp --version
 
 WORKDIR /app
+
+# 👇 pehle cookies copy karo
 COPY cookies.txt /app/cookies.txt
+
+# 👇 verify karo cookies copy hui ya nahi
+RUN ls -la /app/cookies.txt && echo "✅ Cookies found" || echo "❌ Cookies missing"
+
 COPY package*.json ./
 RUN npm install
 
