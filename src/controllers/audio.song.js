@@ -90,10 +90,101 @@
 
 
 
+// import { execFile } from "child_process";
+// import { promisify } from "util";
+// import https from "https";
+// import fs from "fs";
+
+// const execFileAsync = promisify(execFile);
+
+// export const Song_audio = async (req, res) => {
+//   const videoId = req.query.id;
+
+//   if (!videoId) {
+//     return res.status(400).json({ error: "Missing video ID" });
+//   }
+
+//   const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+//   const cookiesPath = fs.existsSync("/app/cookies.txt")
+//     ? "/app/cookies.txt"
+//     : fs.existsSync("./cookies.txt")
+//     ? "./cookies.txt"
+//     : null;
+
+//   try {
+//     const args = [
+//       "--dump-single-json",
+//       "--no-playlist",
+//       "--quiet",
+//       "--no-warnings",
+//       "-f",
+//       "bestaudio/best",
+//       url,
+//     ];
+
+//     if (cookiesPath) {
+//       args.splice(4, 0, "--cookies", cookiesPath);
+//     }
+
+//     const { stdout } = await execFileAsync("yt-dlp", args);
+//     const data = JSON.parse(stdout);
+
+//     const audioFormat = data.formats
+//       ?.filter((f) => f.acodec !== "none" && f.vcodec === "none")
+//       ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+
+//     if (!audioFormat?.url) {
+//       return res.status(500).json({ error: "No audio found" });
+//     }
+
+//     const range = req.headers.range;
+
+//     const headers = {
+//       "User-Agent": "Mozilla/5.0",
+//       Referer: "https://www.youtube.com/",
+//     };
+
+//     if (range) headers.Range = range;
+
+//     https
+//       .get(audioFormat.url, { headers }, (stream) => {
+//         res.setHeader(
+//           "Content-Type",
+//           stream.headers["content-type"] || "audio/mpeg"
+//         );
+//         res.setHeader("Access-Control-Allow-Origin", "*");
+//         res.setHeader("Accept-Ranges", "bytes");
+
+//         if (stream.headers["content-length"]) {
+//           res.setHeader("Content-Length", stream.headers["content-length"]);
+//         }
+
+//         if (stream.headers["content-range"]) {
+//           res.setHeader("Content-Range", stream.headers["content-range"]);
+//         }
+
+//         res.writeHead(range && stream.headers["content-range"] ? 206 : 200);
+
+//         stream.pipe(res);
+//         req.on("close", () => stream.destroy());
+//       })
+//       .on("error", () => {
+//         if (!res.headersSent) {
+//           res.status(500).json({ error: "Stream error" });
+//         }
+//       });
+//   } catch {
+//     res.status(500).json({ error: "Failed to fetch audio" });
+//   }
+// };
+
+
+
 import { execFile } from "child_process";
 import { promisify } from "util";
-import https from "https";
 import fs from "fs";
+import axios from "axios";
 
 const execFileAsync = promisify(execFile);
 
@@ -101,16 +192,20 @@ export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
 
   if (!videoId) {
+    console.log("❌ No video ID");
     return res.status(400).json({ error: "Missing video ID" });
   }
 
   const url = `https://www.youtube.com/watch?v=${videoId}`;
+  console.log("🎬 URL:", url);
 
   const cookiesPath = fs.existsSync("/app/cookies.txt")
     ? "/app/cookies.txt"
     : fs.existsSync("./cookies.txt")
     ? "./cookies.txt"
     : null;
+
+  console.log("🍪 Cookies:", cookiesPath || "Not found");
 
   try {
     const args = [
@@ -127,54 +222,75 @@ export const Song_audio = async (req, res) => {
       args.splice(4, 0, "--cookies", cookiesPath);
     }
 
+    console.log("⚙️ Running yt-dlp...");
+
     const { stdout } = await execFileAsync("yt-dlp", args);
     const data = JSON.parse(stdout);
+
+    console.log("✅ yt-dlp success");
 
     const audioFormat = data.formats
       ?.filter((f) => f.acodec !== "none" && f.vcodec === "none")
       ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
+    console.log("🎧 Selected format:", audioFormat?.format_id);
+
     if (!audioFormat?.url) {
+      console.log("❌ No audio URL");
       return res.status(500).json({ error: "No audio found" });
     }
 
+    console.log("🔗 Audio URL:", audioFormat.url);
+
     const range = req.headers.range;
+    console.log("📡 Range:", range || "none");
 
-    const headers = {
-      "User-Agent": "Mozilla/5.0",
-      Referer: "https://www.youtube.com/",
-    };
+    const response = await axios({
+      method: "GET",
+      url: audioFormat.url,
+      responseType: "stream",
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+        Referer: "https://www.youtube.com/",
+        ...(range ? { Range: range } : {}),
+      },
+    });
 
-    if (range) headers.Range = range;
+    console.log("🚀 Streaming started");
 
-    https
-      .get(audioFormat.url, { headers }, (stream) => {
-        res.setHeader(
-          "Content-Type",
-          stream.headers["content-type"] || "audio/mpeg"
-        );
-        res.setHeader("Access-Control-Allow-Origin", "*");
-        res.setHeader("Accept-Ranges", "bytes");
+    res.setHeader(
+      "Content-Type",
+      response.headers["content-type"] || "audio/mpeg"
+    );
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Accept-Ranges", "bytes");
 
-        if (stream.headers["content-length"]) {
-          res.setHeader("Content-Length", stream.headers["content-length"]);
-        }
+    if (response.headers["content-length"]) {
+      res.setHeader("Content-Length", response.headers["content-length"]);
+    }
 
-        if (stream.headers["content-range"]) {
-          res.setHeader("Content-Range", stream.headers["content-range"]);
-        }
+    if (response.headers["content-range"]) {
+      res.setHeader("Content-Range", response.headers["content-range"]);
+    }
 
-        res.writeHead(range && stream.headers["content-range"] ? 206 : 200);
+    res.writeHead(range && response.headers["content-range"] ? 206 : 200);
 
-        stream.pipe(res);
-        req.on("close", () => stream.destroy());
-      })
-      .on("error", () => {
-        if (!res.headersSent) {
-          res.status(500).json({ error: "Stream error" });
-        }
-      });
-  } catch {
-    res.status(500).json({ error: "Failed to fetch audio" });
+    response.data.pipe(res);
+
+    req.on("close", () => {
+      console.log("❌ Client disconnected");
+      response.data.destroy();
+    });
+
+  } catch (err) {
+    console.log("❌ ERROR FULL:", err.message);
+
+    if (err.response) {
+      console.log("📛 Status:", err.response.status);
+    }
+
+    res.status(500).json({
+      error: err.message,
+    });
   }
 };
