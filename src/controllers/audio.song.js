@@ -1,3 +1,95 @@
+// import { execFile } from "child_process";
+// import { promisify } from "util";
+// import https from "https";
+// import fs from "fs";
+
+// const execFileAsync = promisify(execFile);
+
+// export const Song_audio = async (req, res) => {
+//   const videoId = req.query.id;
+
+//   if (!videoId) {
+//     return res.status(400).json({ error: "Missing video ID" });
+//   }
+
+//   const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+//   // 👇 Local aur Docker dono ke liye
+//   const cookiesPath = fs.existsSync("/app/cookies.txt")
+//     ? "/app/cookies.txt" // Docker/Railway
+//     : "./cookies.txt"; // Local
+
+//   console.log("🍪 Using cookies:", cookiesPath);
+
+//   try {
+//     const { stdout } = await execFileAsync("yt-dlp", [
+//       "--dump-single-json",
+//       "--no-playlist",
+//       "--quiet",
+//       "--no-warnings",
+//       "--cookies",
+//       cookiesPath, // ✅ auto path
+//       "-f",
+//       "bestaudio[ext=m4a]/bestaudio",
+//       url,
+//     ]);
+
+//     const data = JSON.parse(stdout);
+
+//     const audioFormat = data.formats
+//       ?.filter((f) => f.acodec !== "none" && f.vcodec === "none")
+//       ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
+
+//     const audioUrl = audioFormat?.url;
+
+//     if (!audioUrl) {
+//       return res.status(500).json({ error: "No audio found" });
+//     }
+
+//     const range = req.headers.range;
+
+//     const requestHeaders = {
+//       "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
+//       Referer: "https://www.youtube.com/",
+//     };
+
+//     if (range) {
+//       requestHeaders.Range = range;
+//     }
+
+//     https
+//       .get(audioUrl, { headers: requestHeaders }, (stream) => {
+//         const contentType = stream.headers["content-type"] || "audio/mp4";
+//         const contentLength = stream.headers["content-length"];
+//         const contentRange = stream.headers["content-range"];
+
+//         res.setHeader("Content-Type", contentType);
+//         res.setHeader("Access-Control-Allow-Origin", "*");
+//         res.setHeader("Accept-Ranges", "bytes");
+//         res.setHeader("Cache-Control", "no-cache");
+
+//         if (contentLength) res.setHeader("Content-Length", contentLength);
+//         if (contentRange) res.setHeader("Content-Range", contentRange);
+
+//         const statusCode = range && contentRange ? 206 : 200;
+//         res.writeHead(statusCode);
+
+//         stream.pipe(res);
+
+//         req.on("close", () => stream.destroy());
+//       })
+//       .on("error", (err) => {
+//         console.error("❌ Stream error:", err.message);
+//         if (!res.headersSent) res.status(500).json({ error: err.message });
+//       });
+//   } catch (err) {
+//     console.error("❌ Error:", err.message);
+//     res.status(500).json({ error: err.message });
+//   }
+// };
+
+
+
 import { execFile } from "child_process";
 import { promisify } from "util";
 import https from "https";
@@ -14,76 +106,75 @@ export const Song_audio = async (req, res) => {
 
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // 👇 Local aur Docker dono ke liye
   const cookiesPath = fs.existsSync("/app/cookies.txt")
-    ? "/app/cookies.txt" // Docker/Railway
-    : "./cookies.txt"; // Local
-
-  console.log("🍪 Using cookies:", cookiesPath);
+    ? "/app/cookies.txt"
+    : fs.existsSync("./cookies.txt")
+    ? "./cookies.txt"
+    : null;
 
   try {
-    const { stdout } = await execFileAsync("yt-dlp", [
+    const args = [
       "--dump-single-json",
       "--no-playlist",
       "--quiet",
       "--no-warnings",
-      "--cookies",
-      cookiesPath, // ✅ auto path
       "-f",
-      "bestaudio[ext=m4a]/bestaudio",
+      "bestaudio/best",
       url,
-    ]);
+    ];
 
+    if (cookiesPath) {
+      args.splice(4, 0, "--cookies", cookiesPath);
+    }
+
+    const { stdout } = await execFileAsync("yt-dlp", args);
     const data = JSON.parse(stdout);
 
     const audioFormat = data.formats
       ?.filter((f) => f.acodec !== "none" && f.vcodec === "none")
       ?.sort((a, b) => (b.abr || 0) - (a.abr || 0))[0];
 
-    const audioUrl = audioFormat?.url;
-
-    if (!audioUrl) {
+    if (!audioFormat?.url) {
       return res.status(500).json({ error: "No audio found" });
     }
 
     const range = req.headers.range;
 
-    const requestHeaders = {
-      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
+    const headers = {
+      "User-Agent": "Mozilla/5.0",
       Referer: "https://www.youtube.com/",
     };
 
-    if (range) {
-      requestHeaders.Range = range;
-    }
+    if (range) headers.Range = range;
 
     https
-      .get(audioUrl, { headers: requestHeaders }, (stream) => {
-        const contentType = stream.headers["content-type"] || "audio/mp4";
-        const contentLength = stream.headers["content-length"];
-        const contentRange = stream.headers["content-range"];
-
-        res.setHeader("Content-Type", contentType);
+      .get(audioFormat.url, { headers }, (stream) => {
+        res.setHeader(
+          "Content-Type",
+          stream.headers["content-type"] || "audio/mpeg"
+        );
         res.setHeader("Access-Control-Allow-Origin", "*");
         res.setHeader("Accept-Ranges", "bytes");
-        res.setHeader("Cache-Control", "no-cache");
 
-        if (contentLength) res.setHeader("Content-Length", contentLength);
-        if (contentRange) res.setHeader("Content-Range", contentRange);
+        if (stream.headers["content-length"]) {
+          res.setHeader("Content-Length", stream.headers["content-length"]);
+        }
 
-        const statusCode = range && contentRange ? 206 : 200;
-        res.writeHead(statusCode);
+        if (stream.headers["content-range"]) {
+          res.setHeader("Content-Range", stream.headers["content-range"]);
+        }
+
+        res.writeHead(range && stream.headers["content-range"] ? 206 : 200);
 
         stream.pipe(res);
-
         req.on("close", () => stream.destroy());
       })
-      .on("error", (err) => {
-        console.error("❌ Stream error:", err.message);
-        if (!res.headersSent) res.status(500).json({ error: err.message });
+      .on("error", () => {
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Stream error" });
+        }
       });
-  } catch (err) {
-    console.error("❌ Error:", err.message);
-    res.status(500).json({ error: err.message });
+  } catch {
+    res.status(500).json({ error: "Failed to fetch audio" });
   }
 };
