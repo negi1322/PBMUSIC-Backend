@@ -1,6 +1,5 @@
 FROM node:20-slim
 
-# 🔥 system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -10,15 +9,13 @@ RUN apt-get update && apt-get install -y \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
-# 🔥 install latest yt-dlp via pip (IMPORTANT FIX)
-RUN pip install -U yt-dlp
+# 🔥 FIX HERE
+RUN pip install -U yt-dlp --break-system-packages
 
-# 🔥 verify version
 RUN yt-dlp --version
 
 WORKDIR /app
 
-# optional cookies (won't break build if missing)
 COPY cookies.txt /app/cookies.txt
 
 COPY package*.json ./
