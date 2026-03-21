@@ -38,13 +38,15 @@ export const Get_favourite_song = async (req, res) => {
     return res.status(400).json({ message: "Email  are required" });
   }
   try {
+    const confirmUser = await userModel.findOne({ email });
+    if (!confirmUser) {
+      return res.status(400).json({ message: "User not found" });
+    }
     const userFavourites = await userFavModel?.findOne({ email });
     if (userFavourites) {
       return res
         .status(200)
         .json({ message: "Song fetch successfully", data: userFavourites });
-    } else {
-      return res.status(400).json({ message: "user not found" });
     }
   } catch (err) {
     res
