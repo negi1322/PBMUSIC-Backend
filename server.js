@@ -4,7 +4,10 @@ dotenv.config();
 import express from "express";
 import cors from "cors";
 import connectDB from "./src/config/db.js";
-import { Playlist_route } from "./src/controllers/playlist.controller.js";
+import {
+  Get_song_album,
+  Playlist_route,
+} from "./src/controllers/playlist.controller.js";
 import { Search_song } from "./src/controllers/search.song.js";
 import { Trending_song } from "./src/controllers/tranding.song.js";
 import { Song_audio } from "./src/controllers/audio.song.js";
@@ -52,6 +55,7 @@ app.put("/update_profile", UserDetail);
 app.get("/profile", User_profile);
 app.post("/addFav", Add_user_fav);
 app.get("/getFav", Get_favourite_song);
+app.get("/get_song", Get_song_album);
 
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
