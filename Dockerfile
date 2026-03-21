@@ -9,12 +9,10 @@ RUN apt-get update && apt-get install -y \
     && ln -sf /usr/bin/python3 /usr/bin/python \
     && rm -rf /var/lib/apt/lists/*
 
-# yt-dlp latest version pip se
 RUN pip install -U yt-dlp --break-system-packages
 
-# 👇 Node.js JS runtime register karo yt-dlp ke saath
+# 👇 JS extractor scripts install karo
 RUN yt-dlp --install-js-runtime node || true
-
 RUN yt-dlp --version
 
 WORKDIR /app

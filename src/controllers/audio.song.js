@@ -295,7 +295,7 @@ export const Song_audio = async (req, res) => {
       "--no-cache-dir",
       "--no-check-certificates",
       "--js-runtimes",
-      "nodejs:/usr/local/bin/node", // 👈 JS runtime fix
+      "node",
       "-f",
       "bestaudio[ext=m4a]/bestaudio", // 👈 m4a prefer
       "-g",
