@@ -9,30 +9,78 @@ export const Song_audio = async (req, res) => {
 
   console.log("▶️ Playing:", url);
 
-  res.setHeader("Content-Type", "audio/webm");
-  res.setHeader("Accept-Ranges", "bytes");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Transfer-Encoding", "chunked");
-
-  const ytdlp = spawn("yt-dlp", [
-    "-f", "bestaudio",
+  // 👇 Step 1 — pehle total size nikalo
+  const sizeProcess = spawn("yt-dlp", [
+    "-f",
+    "bestaudio",
     "--no-playlist",
     "--quiet",
-    "--no-warnings",
-    "-o", "-",  // stdout me pipe
+    "--print",
+    "%(filesize,filesize_approx)s", // 👈 size fetch karo
     url,
   ]);
 
-  ytdlp.stdout.pipe(res);  // seedha browser ko stream
+  let fileSize = null;
 
-  ytdlp.stderr.on("data", (d) => console.error("yt-dlp:", d.toString()));
-
-  ytdlp.on("error", (err) => {
-    console.error("❌ spawn error:", err.message);
-    if (!res.headersSent) res.status(500).json({ error: err.message });
+  sizeProcess.stdout.on("data", (d) => {
+    const size = parseInt(d.toString().trim());
+    if (!isNaN(size)) fileSize = size;
   });
 
-  ytdlp.on("close", (code) => console.log("yt-dlp closed:", code));
+  sizeProcess.on("close", () => {
+    const range = req.headers.range;
 
-  req.on("close", () => ytdlp.kill("SIGTERM")); // client disconnect pe kill
+    let start = 0;
+    let end = fileSize ? fileSize - 1 : null;
+
+    // 👇 Step 2 — Range header handle karo (seeking ke liye)
+    if (range && fileSize) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      start = parseInt(parts[0], 10);
+      end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const chunkSize = end - start + 1;
+
+      res.writeHead(206, {
+        // 👈 206 = Partial Content (seeking support)
+        "Content-Type": "audio/webm",
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize,
+        "Access-Control-Allow-Origin": "*",
+      });
+    } else {
+      res.writeHead(200, {
+        "Content-Type": "audio/webm",
+        "Accept-Ranges": "bytes",
+        ...(fileSize && { "Content-Length": fileSize }), // 👈 size pata ho toh add karo
+        "Access-Control-Allow-Origin": "*",
+        "Transfer-Encoding": fileSize ? undefined : "chunked",
+      });
+    }
+
+    // 👇 Step 3 — actual stream karo
+    const ytdlp = spawn("yt-dlp", [
+      "-f",
+      "bestaudio",
+      "--no-playlist",
+      "--quiet",
+      "--no-warnings",
+      "-o",
+      "-",
+      url,
+    ]);
+
+    ytdlp.stdout.pipe(res);
+
+    ytdlp.stderr.on("data", (d) => console.error("yt-dlp:", d.toString()));
+
+    ytdlp.on("error", (err) => {
+      console.error("❌ spawn error:", err.message);
+      if (!res.headersSent) res.status(500).json({ error: err.message });
+    });
+
+    ytdlp.on("close", (code) => console.log("yt-dlp closed:", code));
+
+    req.on("close", () => ytdlp.kill("SIGTERM"));
+  });
 };
