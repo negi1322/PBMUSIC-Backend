@@ -46,6 +46,9 @@ app.use(
 );
 
 // Routes
+app.get("/", (req, res) => {
+  res.send("hyy welcome to developer world");
+});
 app.post("/addUser", Add_user);
 app.post("/search", Search_song);
 app.get("/audio", Song_audio);
