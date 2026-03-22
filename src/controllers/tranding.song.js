@@ -19,10 +19,12 @@ export const Trending_song = async (req, res) => {
 
     const query = categoryMap[category] || categoryMap["all"];
 
-    console.log("Query:", query); // debug
-
-    const results = await ytmusic.searchSongs(query);
-
+    const results = await Promise.race([
+      ytmusic.searchSongs(query),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout")), 10000),
+      ),
+    ]);
     res.json(results);
   } catch (err) {
     console.error("ERROR:", err.message);
