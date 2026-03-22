@@ -7,7 +7,7 @@ export const Search_suggestions = async (req, res) => {
   const { query } = req.query;
 
   if (!query) {
-    return res.status(400).json({ message: "Search Something" });
+    return res.status(200).json({ message: "Search Something" });
   }
 
   try {
