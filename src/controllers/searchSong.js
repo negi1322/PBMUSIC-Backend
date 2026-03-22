@@ -8,9 +8,9 @@ export const Search_suggestions = async (req, res) => {
   }
 
   try {
-    const result = await ytmusic.getSearchSuggestions(query);
     const ytmusic = new YTMusic();
     await ytmusic.initialize();
+    const result = await ytmusic.getSearchSuggestions(query);
     if (!result || result.length === 0) {
       return res.status(404).json({ message: "No suggestions found" });
     }
