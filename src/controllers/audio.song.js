@@ -288,17 +288,16 @@ export const Song_audio = async (req, res) => {
       ? "./cookies.txt"
       : null;
 
-  console.log("🍪 Cookies:", cookiesPath ?? "None");
-
   try {
     const args = [
       "--no-cache-dir",
       "--no-check-certificates",
       "--js-runtimes",
       "node",
-      "--remote-components", "ejs:github", // 👈 bas yeh add karo
+      "--remote-components",
+      "ejs:github",
       "-f",
-      "bestaudio[ext=m4a]/bestaudio", // 👈 m4a prefer
+      "bestaudio[ext=m4a]/bestaudio",
       "-g",
       url,
     ];
@@ -307,13 +306,8 @@ export const Song_audio = async (req, res) => {
       args.unshift("--cookies", cookiesPath);
     }
 
-    console.log("📋 Args:", args.join(" "));
-
     const { stdout } = await execFileAsync("yt-dlp", args);
     const audioUrl = stdout.trim().split("\n")[0];
-
-    console.log("🎵 Audio URL found:", !!audioUrl);
-
     if (!audioUrl) {
       return res.status(500).json({ error: "No audio URL found" });
     }
