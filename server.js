@@ -34,7 +34,7 @@ const allowedOrigins = [
   "http://10.96.80.138:5173",
   "http://192.168.1.65:5173",
   "https://pb-music-eight.vercel.app",
-  "https://pb-music-q1jx.vercel.app/login",
+  "https://pb-music-q1jx.vercel.app ",
   process.env.FRONTEND_URL,
 ];
 
