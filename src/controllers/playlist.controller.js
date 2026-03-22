@@ -1,14 +1,13 @@
 import YTMusic from "ytmusic-api";
 
-const ytmusic = new YTMusic();
-await ytmusic.initialize();
-
 export const Playlist_route = async (req, res) => {
   const { query } = req.query;
   if (!query) {
     return res.status(400).json({ message: "Query is required" });
   }
   try {
+    const ytmusic = new YTMusic();
+    await ytmusic.initialize();
     const data = await ytmusic.search(query, "PLAYLIST");
     res.status(200).json({ data });
   } catch (error) {
@@ -18,7 +17,8 @@ export const Playlist_route = async (req, res) => {
 export const Get_song_album = async (req, res) => {
   try {
     const { videoIds } = req.body;
-
+    const ytmusic = new YTMusic();
+    await ytmusic.initialize();
     if (!videoIds || !Array.isArray(videoIds) || videoIds.length === 0) {
       return res.status(400).json({ message: "videoIds array is required" });
     }

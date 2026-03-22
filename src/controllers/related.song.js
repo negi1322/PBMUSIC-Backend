@@ -1,12 +1,10 @@
 import YTMusic from "ytmusic-api";
 
-const ytmusic = new YTMusic();
-await ytmusic.initialize();
-
 export const Related_song = async (req, res) => {
   try {
     const { videoId } = req.body;
-
+    const ytmusic = new YTMusic();
+    await ytmusic.initialize();
     if (!videoId) {
       return res.status(400).json({ message: "videoId is required" });
     }
