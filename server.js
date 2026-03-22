@@ -19,6 +19,8 @@ import {
   Get_favourite_song,
   Remove_user_fav,
 } from "./src/controllers/adduserFavourite.song.js";
+import { Related_song } from "./src/controllers/related.song.js";
+import { Search_suggestions } from "./src/controllers/searchSong.js";
 
 const app = express();
 app.use(express.json());
@@ -61,7 +63,8 @@ app.post("/addFav", Add_user_fav);
 app.post("/removeFav", Remove_user_fav);
 app.get("/getFav", Get_favourite_song);
 app.post("/get_song", Get_song_album);
-
+app.post("/related_song", Related_song);
+app.post("/search_song", Search_suggestions);
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
 });

@@ -15,7 +15,6 @@ export const Playlist_route = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
-
 export const Get_song_album = async (req, res) => {
   try {
     const { videoIds } = req.body;
@@ -26,37 +25,72 @@ export const Get_song_album = async (req, res) => {
 
     const results = await Promise.allSettled(
       videoIds.map(async (videoId) => {
-        const song = await ytmusic.getSong(videoId);
+        // Parallel mein sab fetch karo — fast hoga
+        const [song, lyrics, relatedSongs] = await Promise.allSettled([
+          ytmusic.getSong(videoId),
+          ytmusic.getLyrics(videoId),
+          ytmusic.getUpNexts(videoId),
+        ]);
 
-        const albumId = song?.album?.id;
+        const songData = song.status === "fulfilled" ? song.value : null;
+
         let album = null;
-
+        const albumId = songData?.album?.id;
         if (albumId) {
-          album = await ytmusic.getAlbum(albumId);
+          const albumResult = await ytmusic.getAlbum(albumId).catch(() => null);
+          album = albumResult;
+        }
+
+        let artistDetails = [];
+        if (songData?.artists?.length > 0) {
+          const artistResults = await Promise.allSettled(
+            songData.artists.map((a) =>
+              a.id ? ytmusic.getArtist(a.id) : Promise.resolve(null),
+            ),
+          );
+          artistDetails = artistResults.map((r, i) => ({
+            id: songData.artists[i]?.id,
+            name: songData.artists[i]?.name,
+            details: r.status === "fulfilled" ? r.value : null,
+          }));
         }
 
         return {
           videoId,
-          title: song?.title,
-          duration: song?.duration,
-          duration_seconds: song?.duration_seconds,
+          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
 
-          artists: song?.artists?.map((a) => ({
-            name: a.name,
-            id: a.id,
-          })),
-
+          // 🎵 Basic Song Info
+          title: songData?.title,
+          duration: songData?.duration,
+          duration_seconds: songData?.duration_seconds,
+          thumbnails: songData?.thumbnails,
+          isExplicit: songData?.isExplicit || false,
+          category: songData?.category || null,
+          artists: artistDetails,
           album: album
             ? {
-                name: album?.name,
                 id: album?.id,
+                name: album?.name,
                 year: album?.year,
+                trackCount: album?.trackCount,
+                description: album?.description,
                 thumbnails: album?.thumbnails,
+                tracks: album?.tracks || [],
               }
             : null,
-          thumbnails: song?.thumbnails,
 
-          videoUrl: `https://www.youtube.com/watch?v=${videoId}`,
+          lyrics: lyrics.status === "fulfilled" ? lyrics.value : null,
+
+          relatedSongs:
+            relatedSongs.status === "fulfilled"
+              ? relatedSongs.value?.map((s) => ({
+                  videoId: s?.videoId,
+                  title: s?.title,
+                  artists: s?.artists,
+                  thumbnails: s?.thumbnails,
+                  duration: s?.duration,
+                }))
+              : [],
         };
       }),
     );
