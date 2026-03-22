@@ -64,7 +64,7 @@ app.post("/removeFav", Remove_user_fav);
 app.get("/getFav", Get_favourite_song);
 app.post("/get_song", Get_song_album);
 app.post("/related_song", Related_song);
-app.post("/search_song", Search_suggestions);
+app.get("/search_song", Search_suggestions);
 app.listen(Port, () => {
   console.log(`🚀 Server running at ${Port}`);
 });
