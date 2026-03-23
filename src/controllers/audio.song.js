@@ -1,103 +1,13 @@
-// import { execFile } from "child_process";
-// import { promisify } from "util";
-// import fs from "fs";
-// import axios from "axios";
-
-// const execFileAsync = promisify(execFile);
-
-// export const Song_audio = async (req, res) => {
-//   const videoId = req.query.id;
-
-//   if (!videoId) {
-//     return res.status(400).json({ error: "Missing video ID" });
-//   }
-
-//   const url = `https://www.youtube.com/watch?v=${videoId}`;
-
-//   const cookiesPath = fs.existsSync("/app/cookies.txt")
-//     ? "/app/cookies.txt"
-//     : fs.existsSync("./cookies.txt")
-//       ? "./cookies.txt"
-//       : null;
-
-//   try {
-//     const args = [
-//       "--no-cache-dir",
-//       "--no-check-certificates",
-//       "--js-runtimes",
-//       "node",
-//       "--remote-components",
-//       "ejs:github",
-//       "-f",
-//       "bestaudio[ext=m4a]/bestaudio",
-//       "-g",
-//       url,
-//     ];
-
-//     if (cookiesPath) {
-//       args.unshift("--cookies", cookiesPath);
-//     }
-
-//     const { stdout } = await execFileAsync("yt-dlp", args);
-//     const audioUrl = stdout.trim().split("\n")[0];
-//     if (!audioUrl) {
-//       return res.status(500).json({ error: "No audio URL found" });
-//     }
-
-//     const range = req.headers.range;
-
-//     const response = await axios({
-//       method: "GET",
-//       url: audioUrl,
-//       responseType: "stream",
-//       headers: {
-//         "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
-//         Referer: "https://www.youtube.com/",
-//         ...(range ? { Range: range } : {}),
-//       },
-//     });
-
-//     res.setHeader(
-//       "Content-Type",
-//       response.headers["content-type"] || "audio/mp4",
-//     );
-//     res.setHeader("Access-Control-Allow-Origin", "*");
-//     res.setHeader("Accept-Ranges", "bytes");
-//     res.setHeader("Cache-Control", "no-cache");
-
-//     if (response.headers["content-length"]) {
-//       res.setHeader("Content-Length", response.headers["content-length"]);
-//     }
-
-//     if (response.headers["content-range"]) {
-//       res.setHeader("Content-Range", response.headers["content-range"]);
-//     }
-
-//     const statusCode = range && response.headers["content-range"] ? 206 : 200;
-//     res.writeHead(statusCode);
-
-//     response.data.pipe(res);
-
-//     req.on("close", () => response.data.destroy());
-//   } catch (err) {
-//     console.error("❌ ERROR:", err.message);
-//     if (!res.headersSent) {
-//       res.status(500).json({ error: "Streaming failed", detail: err.message });
-//     }
-//   }
-// };
-
-
-
 import { execFile } from "child_process";
 import { promisify } from "util";
-import fs from "fs";
-import axios from "axios";
+import path from "path";
+import { fileURLToPath } from "url";
+import fetch from "node-fetch";
 
 const execFileAsync = promisify(execFile);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ✅ Use correct yt-dlp path based on environment
-const ytDlpPath = process.env.YTDLP_PATH || "yt-dlp";
+const YTDLP = path.resolve(__dirname, "../../yt-dlp.exe");
 
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
@@ -108,67 +18,76 @@ export const Song_audio = async (req, res) => {
 
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-  const cookiesPath = fs.existsSync("/app/cookies.txt")
-    ? "/app/cookies.txt"
-    : fs.existsSync("./cookies.txt")
-      ? "./cookies.txt"
-      : null;
-
   try {
-    const args = [
-      "--no-cache-dir",
-      "--no-check-certificates",
+    // ✅ Step 1: Get the direct audio URL from yt-dlp
+    const { stdout } = await execFileAsync(YTDLP, [
+      "--no-warnings",
+      "--no-playlist",
       "-f",
-      "bestaudio[ext=m4a]/bestaudio",
-      "-g",
+      "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio",
+      "--get-url",
       url,
-    ];
+    ]);
 
-    if (cookiesPath) {
-      args.unshift("--cookies", cookiesPath);
-    }
-
-    // ✅ Use ytDlpPath instead of hardcoded "yt-dlp"
-    const { stdout } = await execFileAsync(ytDlpPath, args);
     const audioUrl = stdout.trim().split("\n")[0];
 
     if (!audioUrl) {
       return res.status(500).json({ error: "No audio URL found" });
     }
 
+    // ✅ Step 2: Get video title + thumbnail separately
+    const { stdout: infoOut } = await execFileAsync(YTDLP, [
+      "--no-warnings",
+      "--no-playlist",
+      "--print",
+      "%(title)s\n%(thumbnail)s",
+      url,
+    ]);
+
+    const [title = "", thumbnail = ""] = infoOut.trim().split("\n");
+
+    // ✅ Step 3: Stream audio to client
     const range = req.headers.range;
 
-    const response = await axios({
-      method: "GET",
-      url: audioUrl,
-      responseType: "stream",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
-        Referer: "https://www.youtube.com/",
-        ...(range ? { Range: range } : {}),
-      },
-    });
+    const fetchHeaders = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+      Referer: "https://www.youtube.com/",
+      Origin: "https://www.youtube.com",
+      ...(range ? { Range: range } : {}),
+    };
 
-    res.setHeader("Content-Type", response.headers["content-type"] || "audio/mp4");
+    const audioRes = await fetch(audioUrl, { headers: fetchHeaders });
+
+    if (!audioRes.ok && audioRes.status !== 206) {
+      return res
+        .status(500)
+        .json({ error: `Audio fetch failed: ${audioRes.status}` });
+    }
+
+    // ✅ Forward headers
+    res.setHeader(
+      "Content-Type",
+      audioRes.headers.get("content-type") || "audio/webm",
+    );
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Cache-Control", "no-cache");
 
-    if (response.headers["content-length"]) {
-      res.setHeader("Content-Length", response.headers["content-length"]);
-    }
-    if (response.headers["content-range"]) {
-      res.setHeader("Content-Range", response.headers["content-range"]);
-    }
+    if (title) res.setHeader("X-Title", encodeURIComponent(title));
+    if (thumbnail) res.setHeader("X-Thumbnail", thumbnail);
 
-    const statusCode = range && response.headers["content-range"] ? 206 : 200;
-    res.writeHead(statusCode);
+    const contentLength = audioRes.headers.get("content-length");
+    const contentRange = audioRes.headers.get("content-range");
 
-    response.data.pipe(res);
-    req.on("close", () => response.data.destroy());
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+    if (contentRange) res.setHeader("Content-Range", contentRange);
 
+    res.writeHead(audioRes.status === 206 ? 206 : 200);
+
+    audioRes.body.pipe(res);
+    req.on("close", () => audioRes.body.destroy());
   } catch (err) {
-    console.error("❌ ERROR:", err.message);
+    console.error("❌ Song_audio error:", err.message);
     if (!res.headersSent) {
       res.status(500).json({ error: "Streaming failed", detail: err.message });
     }
