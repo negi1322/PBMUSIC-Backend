@@ -53,7 +53,7 @@ export const Song_audio = async (req, res) => {
       "--no-warnings",
       "--no-playlist",
       "-f",
-      "bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio",
+      "bestaudio",
       "--get-url",
       url,
     ]);
