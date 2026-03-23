@@ -13,16 +13,20 @@ const YTDLP =
     ? path.resolve(__dirname, "../../yt-dlp.exe")
     : "/opt/render/project/src/yt-dlp";
 
-// ✅ Locally no cookies needed, on Render use Secret File
-const COOKIES_PATH =
-  process.platform === "win32" ? null : "/etc/secrets/yt-cookies.txt";
+// ✅ /etc/secrets is read-only, so copy to /tmp (writable)
+const SECRET_COOKIES = "/etc/secrets/yt-cookies.txt";
+const COOKIES_PATH = "/tmp/yt-cookies.txt";
 
 const ensureCookies = () => {
-  if (!COOKIES_PATH) return;
-  if (fs.existsSync(COOKIES_PATH)) {
-    console.log("✅ Cookies file found");
+  if (process.platform === "win32") return;
+
+  if (fs.existsSync(SECRET_COOKIES) && !fs.existsSync(COOKIES_PATH)) {
+    fs.copyFileSync(SECRET_COOKIES, COOKIES_PATH);
+    console.log("✅ Cookies copied to /tmp/");
+  } else if (fs.existsSync(COOKIES_PATH)) {
+    console.log("✅ Cookies already in /tmp/");
   } else {
-    console.warn("⚠️ Cookies file NOT found at", COOKIES_PATH);
+    console.warn("⚠️ Cookies file NOT found");
   }
 };
 
@@ -38,7 +42,7 @@ export const Song_audio = async (req, res) => {
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
   const cookieArgs =
-    COOKIES_PATH && fs.existsSync(COOKIES_PATH)
+    process.platform !== "win32" && fs.existsSync(COOKIES_PATH)
       ? ["--cookies", COOKIES_PATH]
       : [];
 
