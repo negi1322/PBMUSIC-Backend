@@ -13,25 +13,20 @@ const YTDLP =
     ? path.resolve(__dirname, "../../yt-dlp.exe")
     : "/opt/render/project/src/yt-dlp";
 
-const COOKIES_PATH = "/tmp/yt-cookies.txt";
+// ✅ Locally no cookies needed, on Render use Secret File
+const COOKIES_PATH =
+  process.platform === "win32" ? null : "/etc/secrets/yt-cookies.txt";
 
-// ✅ Called lazily on first request — dotenv is already loaded by then
 const ensureCookies = () => {
-  if (fs.existsSync(COOKIES_PATH)) return; // already written
-
-  const b64 = process.env.YT_COOKIES_B64;
-  console.log("🍪 Cookie env present:", !!b64);
-
-  if (b64) {
-    const decoded = Buffer.from(b64, "base64").toString("utf-8");
-    fs.writeFileSync(COOKIES_PATH, decoded);
-    console.log("✅ YouTube cookies written to", COOKIES_PATH);
+  if (!COOKIES_PATH) return;
+  if (fs.existsSync(COOKIES_PATH)) {
+    console.log("✅ Cookies file found");
   } else {
-    console.warn(
-      "⚠️ YT_COOKIES_B64 not set — requests may be blocked by YouTube",
-    );
+    console.warn("⚠️ Cookies file NOT found at", COOKIES_PATH);
   }
 };
+
+ensureCookies();
 
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
@@ -40,14 +35,12 @@ export const Song_audio = async (req, res) => {
     return res.status(400).json({ error: "Missing video ID" });
   }
 
-  // ✅ Ensure cookies are ready on every request (writes only once)
-  ensureCookies();
-
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-  const cookieArgs = fs.existsSync(COOKIES_PATH)
-    ? ["--cookies", COOKIES_PATH]
-    : [];
+  const cookieArgs =
+    COOKIES_PATH && fs.existsSync(COOKIES_PATH)
+      ? ["--cookies", COOKIES_PATH]
+      : [];
 
   try {
     // ✅ Step 1: Get direct audio URL
