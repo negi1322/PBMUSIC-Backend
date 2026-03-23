@@ -8,27 +8,30 @@ import fetch from "node-fetch";
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// ✅ Works on Windows locally and Linux on Render
 const YTDLP =
   process.platform === "win32"
     ? path.resolve(__dirname, "../../yt-dlp.exe")
     : "/opt/render/project/src/yt-dlp";
 
-// ✅ Write cookies from env variable once at startup
 const COOKIES_PATH = "/tmp/yt-cookies.txt";
 
-const setupCookies = () => {
+// ✅ Called lazily on first request — dotenv is already loaded by then
+const ensureCookies = () => {
+  if (fs.existsSync(COOKIES_PATH)) return; // already written
+
   const b64 = process.env.YT_COOKIES_B64;
   console.log("🍪 Cookie env present:", !!b64);
-  if (b64 && !fs.existsSync(COOKIES_PATH)) {
+
+  if (b64) {
     const decoded = Buffer.from(b64, "base64").toString("utf-8");
     fs.writeFileSync(COOKIES_PATH, decoded);
-    console.log("✅ YouTube cookies loaded");
+    console.log("✅ YouTube cookies written to", COOKIES_PATH);
+  } else {
+    console.warn(
+      "⚠️ YT_COOKIES_B64 not set — requests may be blocked by YouTube",
+    );
   }
-  console.log("🍪 Cookie file exists:", fs.existsSync(COOKIES_PATH));
 };
-
-setupCookies();
 
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
@@ -37,9 +40,11 @@ export const Song_audio = async (req, res) => {
     return res.status(400).json({ error: "Missing video ID" });
   }
 
+  // ✅ Ensure cookies are ready on every request (writes only once)
+  ensureCookies();
+
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // ✅ Use cookies if available
   const cookieArgs = fs.existsSync(COOKIES_PATH)
     ? ["--cookies", COOKIES_PATH]
     : [];
