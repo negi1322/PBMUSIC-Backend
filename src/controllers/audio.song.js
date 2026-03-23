@@ -7,8 +7,10 @@ import fetch from "node-fetch";
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const YTDLP = path.resolve(__dirname, "../../yt-dlp.exe");
-
+const YTDLP =
+  process.platform === "win32"
+    ? path.resolve(__dirname, "../../yt-dlp.exe")
+    : path.resolve(__dirname, "../../yt-dlp");
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
 
