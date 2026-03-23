@@ -13,13 +13,11 @@ const YTDLP =
     ? path.resolve(__dirname, "../../yt-dlp.exe")
     : "/opt/render/project/src/yt-dlp";
 
-// ✅ /etc/secrets is read-only, so copy to /tmp (writable)
 const SECRET_COOKIES = "/etc/secrets/yt-cookies.txt";
 const COOKIES_PATH = "/tmp/yt-cookies.txt";
 
 const ensureCookies = () => {
   if (process.platform === "win32") return;
-
   if (fs.existsSync(SECRET_COOKIES) && !fs.existsSync(COOKIES_PATH)) {
     fs.copyFileSync(SECRET_COOKIES, COOKIES_PATH);
     console.log("✅ Cookies copied to /tmp/");
@@ -47,13 +45,10 @@ export const Song_audio = async (req, res) => {
       : [];
 
   try {
-    // ✅ Step 1: Get direct audio URL
     const { stdout } = await execFileAsync(YTDLP, [
       ...cookieArgs,
       "--no-warnings",
       "--no-playlist",
-      "-f",
-      "bestaudio",
       "--get-url",
       url,
     ]);
@@ -64,7 +59,6 @@ export const Song_audio = async (req, res) => {
       return res.status(500).json({ error: "No audio URL found" });
     }
 
-    // ✅ Step 2: Get title + thumbnail
     const { stdout: infoOut } = await execFileAsync(YTDLP, [
       ...cookieArgs,
       "--no-warnings",
@@ -76,7 +70,6 @@ export const Song_audio = async (req, res) => {
 
     const [title = "", thumbnail = ""] = infoOut.trim().split("\n");
 
-    // ✅ Step 3: Stream audio to client
     const range = req.headers.range;
 
     const fetchHeaders = {
