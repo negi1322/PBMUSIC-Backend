@@ -2,15 +2,34 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import fetch from "node-fetch";
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// ✅ Works on Windows locally and Linux on Render
 const YTDLP =
   process.platform === "win32"
     ? path.resolve(__dirname, "../../yt-dlp.exe")
-    : path.resolve(__dirname, "../../yt-dlp");
+    : "/opt/render/project/src/yt-dlp";
+
+// ✅ Write cookies from env variable once at startup
+const COOKIES_PATH = "/tmp/yt-cookies.txt";
+
+const setupCookies = () => {
+  const b64 = process.env.YT_COOKIES_B64;
+  console.log("🍪 Cookie env present:", !!b64);
+  if (b64 && !fs.existsSync(COOKIES_PATH)) {
+    const decoded = Buffer.from(b64, "base64").toString("utf-8");
+    fs.writeFileSync(COOKIES_PATH, decoded);
+    console.log("✅ YouTube cookies loaded");
+  }
+  console.log("🍪 Cookie file exists:", fs.existsSync(COOKIES_PATH));
+};
+
+setupCookies();
+
 export const Song_audio = async (req, res) => {
   const videoId = req.query.id;
 
@@ -20,9 +39,15 @@ export const Song_audio = async (req, res) => {
 
   const url = `https://www.youtube.com/watch?v=${videoId}`;
 
+  // ✅ Use cookies if available
+  const cookieArgs = fs.existsSync(COOKIES_PATH)
+    ? ["--cookies", COOKIES_PATH]
+    : [];
+
   try {
-    // ✅ Step 1: Get the direct audio URL from yt-dlp
+    // ✅ Step 1: Get direct audio URL
     const { stdout } = await execFileAsync(YTDLP, [
+      ...cookieArgs,
       "--no-warnings",
       "--no-playlist",
       "-f",
@@ -37,8 +62,9 @@ export const Song_audio = async (req, res) => {
       return res.status(500).json({ error: "No audio URL found" });
     }
 
-    // ✅ Step 2: Get video title + thumbnail separately
+    // ✅ Step 2: Get title + thumbnail
     const { stdout: infoOut } = await execFileAsync(YTDLP, [
+      ...cookieArgs,
       "--no-warnings",
       "--no-playlist",
       "--print",
@@ -66,7 +92,6 @@ export const Song_audio = async (req, res) => {
         .json({ error: `Audio fetch failed: ${audioRes.status}` });
     }
 
-    // ✅ Forward headers
     res.setHeader(
       "Content-Type",
       audioRes.headers.get("content-type") || "audio/webm",
