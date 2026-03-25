@@ -21,7 +21,7 @@ export const Song_audio = async (req, res) => {
       "--user-agent",
       "Mozilla/5.0",
       "--extractor-args",
-      "youtube:player_client=android",
+      "youtube:player_client=android,web",
       "--get-url",
       url,
     ]);
