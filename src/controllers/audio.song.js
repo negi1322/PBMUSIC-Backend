@@ -2,7 +2,8 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import fetch from "node-fetch";
 
-const YTDLP = "yt-dlp";
+// const YTDLP = "yt-dlp";
+const YTDLP = "/usr/local/bin/yt-dlp";
 const execFileAsync = promisify(execFile);
 
 export const Song_audio = async (req, res) => {

@@ -15,7 +15,8 @@ RUN pip install --no-cache-dir -U yt-dlp --break-system-packages
 
 # ✅ Install JS runtime for yt-dlp (fixes YouTube issues)
 RUN yt-dlp --install-js-runtime node || true
-
+RUN pip install -U yt-dlp --break-system-packages
+RUN which yt-dlp
 WORKDIR /app
 
 # ✅ Install node deps first (better caching)
